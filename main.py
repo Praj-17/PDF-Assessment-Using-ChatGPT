@@ -1,54 +1,60 @@
-import pdfplumber
 import easyocr
+from PIL import Image
+from pdf2image import convert_from_path
+import pytesseract
 
-class PdfOCR:
-    def __init__(self, pdf_path):
-        self.pdf_path = pdf_path
+class HandwrittenPDFExtractor:
+    def __init__(self, tesseract_cmd_path, easyocr_lang='en'):
+        self.tesseract_cmd_path = tesseract_cmd_path
+        self.easyocr_lang = easyocr_lang
+        pytesseract.pytesseract.tesseract_cmd = tesseract_cmd_path
+        self.reader = easyocr.Reader([easyocr_lang])
 
-    def extract_text_from_page(self, page_number):
-        with pdfplumber.open(self.pdf_path) as pdf:
-            page = pdf.pages[page_number]
-            text = page.extract_text()
-        return text
+    def pdf_to_images(self, pdf_path):
+        images = convert_from_path(pdf_path)
+        print(type(images[0]))
+        final_images = []
+        pdf_name = pdf_path.split("/")[-1][:3]
+        for i, image in enumerate(images):
+            image = image.save(f'{pdf_name}_page_{i + 1}.jpg')
+            final_images.append(f"{pdf_name}_page_{i + 1}.jpg")
+            print(f'Saved page_{i + 1}.png')
 
-    def extract_text_from_all_pages(self):
-        with pdfplumber.open(self.pdf_path) as pdf:
-            all_text = [page.extract_text() for page in pdf.pages]
-        return all_text
+        return final_images
 
-    def convert_pdf_to_images(self):
-        with pdfplumber.open(self.pdf_path) as pdf:
-            images = [page.to_image() for page in pdf.pages]
-        return images
 
-    def perform_ocr_on_images(self, images):
-        reader = easyocr.Reader(['en'])
+    def extract_text_tesseract(self, image):
+        print("Running Tesseract")
+        text_tesseract = pytesseract.image_to_string(image, lang='eng')
+        print(text_tesseract)
+        return text_tesseract
+
+    def extract_text_easyocr(self, image):
+        result = self.reader.readtext(image)
+        text_easyocr = '\n'.join([entry[1] for entry in result])
+        return text_easyocr
+
+    def extract_text_from_handwritten_pdf(self, pdf_path):
+        images = self.pdf_to_images(pdf_path)
         extracted_text = []
-        for image in images:
-            result = reader.readtext(image.to_pil())
-            text = ' '.join([entry[1] for entry in result])
-            extracted_text.append(text)
+
+        for i, image in enumerate(images):
+            # text_tesseract = self.extract_text_tesseract(image)
+            text_easyocr = self.extract_text_easyocr(image)
+
+            extracted_text.append({
+                # 'tesseract': text_tesseract
+                'easyocr': text_easyocr
+            })
+
         return extracted_text
 
-def process_pdf(pdf_path):
-    pdf_ocr = PdfOCR(pdf_path)
-
-    # Extract text from a specific page
-    page_number = 0  # Change to the desired page number
-    text_from_page = pdf_ocr.extract_text_from_page(page_number)
-    print(f"Text from page {page_number + 1}:\n{text_from_page}\n")
-
-    # Extract text from all pages
-    all_text = pdf_ocr.extract_text_from_all_pages()
-    print(f"Text from all pages:\n{all_text}\n")
-
-    # Convert PDF to images and perform OCR on the images
-    pdf_images = pdf_ocr.convert_pdf_to_images()
-    ocr_results = pdf_ocr.perform_ocr_on_images(pdf_images)
-
-    for i, result in enumerate(ocr_results):
-        print(f"OCR Result for page {i + 1}:\n{result}\n")
-
 if __name__ == "__main__":
-    pdf_path = "data/sample.pdf"
-    process_pdf(pdf_path)
+    tesseract_cmd_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    pdf_extractor = HandwrittenPDFExtractor(tesseract_cmd_path)
+
+    pdf_path = "data/sample2.pdf"
+    extracted_text = pdf_extractor.extract_text_from_handwritten_pdf(pdf_path)
+
+    for i, text_dict in enumerate(extracted_text):
+        print(f"Page {i+1}:\nTesseract OCR:\n\nEasyOCR:\n{text_dict['easyocr']}\n")
