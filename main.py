@@ -2,6 +2,41 @@ import easyocr
 from PIL import Image
 from pdf2image import convert_from_path
 import pytesseract
+import speech_recognition as sr
+import speech_recognition as sr
+
+class SpeechRecognizer:
+    def __init__(self):
+        self.recognizer = sr.Recognizer()
+
+    def listen(self, attempt_count=0):
+        with sr.Microphone() as source:
+            print("Listening...")
+            self.recognizer.pause_threshold = 1.2
+            self.recognizer.non_speaking_duration = 0.3
+            self.recognizer.energy_threshold = 340
+            audio = self.recognizer.listen(source, phrase_time_limit=6)
+
+        try:
+            print("Recognizing...")
+            query = self.recognizer.recognize_google(audio, language="en-in")
+            print(f"You said: {query}")
+            return query.lower()
+        except sr.UnknownValueError:
+            if attempt_count >= 3:
+                query = " "
+                return query.lower()
+            print("Couldn't understand, say that again please!")
+            return self.listen(attempt_count + 1)
+        except sr.RequestError as e:
+            print(f"Error connecting to Google's speech recognition service; {e}")
+            query = " "
+            return query.lower()
+
+
+
+
+
 
 class HandwrittenPDFExtractor:
     def __init__(self, tesseract_cmd_path, easyocr_lang='en'):
@@ -51,10 +86,15 @@ class HandwrittenPDFExtractor:
 
 if __name__ == "__main__":
     tesseract_cmd_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-    pdf_extractor = HandwrittenPDFExtractor(tesseract_cmd_path)
+    # pdf_extractor = HandwrittenPDFExtractor(tesseract_cmd_path)
 
-    pdf_path = "data/sample2.pdf"
-    extracted_text = pdf_extractor.extract_text_from_handwritten_pdf(pdf_path)
+    # pdf_path = "data/sample2.pdf"
+    # extracted_text = pdf_extractor.extract_text_from_handwritten_pdf(pdf_path)
 
-    for i, text_dict in enumerate(extracted_text):
-        print(f"Page {i+1}:\nTesseract OCR:\n\nEasyOCR:\n{text_dict['easyocr']}\n")
+    # for i, text_dict in enumerate(extracted_text):
+    #     print(f"Page {i+1}:\nTesseract OCR:\n\nEasyOCR:\n{text_dict['easyocr']}\n")
+    # Example usage:
+    # Example usage:
+    speech_recognizer = SpeechRecognizer()
+    result = speech_recognizer.listen()
+    print("Final Result:", result)
