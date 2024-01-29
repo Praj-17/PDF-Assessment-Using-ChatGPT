@@ -3,7 +3,7 @@ from PIL import Image
 from pdf2image import convert_from_path
 import pytesseract
 import speech_recognition as sr
-import speech_recognition as sr
+import os
 
 class SpeechRecognizer:
     def __init__(self):
@@ -51,9 +51,11 @@ class HandwrittenPDFExtractor:
         final_images = []
         pdf_name = pdf_path.split("/")[-1][:3]
         for i, image in enumerate(images):
-            image = image.save(f'{pdf_name}_page_{i + 1}.jpg')
-            final_images.append(f"{pdf_name}_page_{i + 1}.jpg")
-            print(f'Saved page_{i + 1}.png')
+            image_path = f'{pdf_name}_page_{i + 1}.jpg'
+            if not os.path.exists(image_path):
+                image = image.save()
+            final_images.append(image_path)
+            print(image_path)
 
         return final_images
 
@@ -65,6 +67,7 @@ class HandwrittenPDFExtractor:
         return text_tesseract
 
     def extract_text_easyocr(self, image):
+        print("Running EasyOCR")
         result = self.reader.readtext(image)
         text_easyocr = '\n'.join([entry[1] for entry in result])
         return text_easyocr
@@ -74,27 +77,26 @@ class HandwrittenPDFExtractor:
         extracted_text = []
 
         for i, image in enumerate(images):
-            # text_tesseract = self.extract_text_tesseract(image)
+            text_tesseract = self.extract_text_tesseract(image)
             text_easyocr = self.extract_text_easyocr(image)
 
             extracted_text.append({
-                # 'tesseract': text_tesseract
+                'tesseract': text_tesseract,
                 'easyocr': text_easyocr
             })
 
         return extracted_text
 
 if __name__ == "__main__":
+    print("________________Text Extraction__________________")
     tesseract_cmd_path = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-    # pdf_extractor = HandwrittenPDFExtractor(tesseract_cmd_path)
+    pdf_extractor = HandwrittenPDFExtractor(tesseract_cmd_path)
 
-    # pdf_path = "data/sample2.pdf"
-    # extracted_text = pdf_extractor.extract_text_from_handwritten_pdf(pdf_path)
+    pdf_path = "data/sample2.pdf"
+    extracted_text = pdf_extractor.extract_text_from_handwritten_pdf(pdf_path)
+    print(extracted_text)
 
-    # for i, text_dict in enumerate(extracted_text):
-    #     print(f"Page {i+1}:\nTesseract OCR:\n\nEasyOCR:\n{text_dict['easyocr']}\n")
-    # Example usage:
-    # Example usage:
+    print("________________Speech Recognition__________________")
     speech_recognizer = SpeechRecognizer()
     result = speech_recognizer.listen()
     print("Final Result:", result)
